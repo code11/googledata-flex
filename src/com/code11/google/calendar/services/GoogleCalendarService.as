@@ -1,11 +1,24 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+//  CODE11.COM
+//  Copyright 2011
+//  licenced under GPU
+//
+//  @author		Romeo Copaciu romeo.copaciu@code11.com
+//  @date		24 May 2011
+//  @version	1.0
+//  @site		code11.com
+//
+////////////////////////////////////////////////////////////////////////////////
+
 package com.code11.google.calendar.services
 {
 	
-	import com.code11.google.login.AuthenticatedUser;
 	import com.adobe.serializers.json.JSONEncoder;
 	import com.code11.google.calendar.util.CalendarUtil;
 	import com.code11.google.calendar.util.Recurrence;
 	import com.code11.google.calendar.valueObjects.*;
+	import com.code11.google.login.AuthenticatedUser;
 	
 	import flash.events.Event;
 	import flash.events.HTTPStatusEvent;
@@ -26,6 +39,7 @@ package com.code11.google.calendar.services
 	import mx.rpc.http.Operation;
 	import mx.rpc.xml.SimpleXMLDecoder;
 	import mx.utils.ObjectProxy;
+	import mx.utils.ObjectUtil;
 	
 	public class GoogleCalendarService extends ServiceBase {
 		
@@ -39,7 +53,6 @@ package com.code11.google.calendar.services
 		}
 		
 		public function getSettings(user:AuthenticatedUser):void {
-			
 		}
 		
 		override protected function init():void {
@@ -53,6 +66,7 @@ package com.code11.google.calendar.services
 			var argsArray:Array;
 			
 			operation = new mx.rpc.http.Operation(null, "allcalendars");
+			operation.headers = null;
 			operation.url = "allcalendars/full?alt=jsonc"
 			operation.method = "GET";
 			operation.serializationFilter = serializer;
@@ -60,6 +74,7 @@ package com.code11.google.calendar.services
 			operations.push(operation);
 			
 			operation = new mx.rpc.http.Operation(null, "owncalendars");
+			operation.headers = null;
 			operation.url = "owncalendars/full?alt=jsonc";
 			operation.method = "GET";
 			operation.serializationFilter = serializer;
@@ -67,6 +82,7 @@ package com.code11.google.calendar.services
 			operations.push(operation);
 			
 			operation = new mx.rpc.http.Operation(null, "createCalendar");
+			operation.headers = null;
 			operation.url = "owncalendars/full?alt=jsonc";
 			operation.method = "POST";
 			//operation.argumentNames = ["data"];
@@ -76,17 +92,21 @@ package com.code11.google.calendar.services
 			operations.push(operation);
 			
 			operation = new mx.rpc.http.Operation(null, "updateCalendar");
+			operation.headers = null;
 			operation.contentType = "application/json";
 			operation.method = "PUT";
 			operations.push(operation);
 			
 			
 			operation = new mx.rpc.http.Operation(null, "deleteCalendar");
+			operation.headers = null;
+			operation.contentType = "application/json";
 			operation.method = "DELETE";
 			operations.push(operation);
 			
 			
 			operation = new mx.rpc.http.Operation(null, "getEventsBetween");
+			operation.headers = null;
 			//operation.contentType = "application/json";
 			operation.argumentNames = ["start-min","start-max"];
 			operation.serializationFilter = serializer;
@@ -95,6 +115,7 @@ package com.code11.google.calendar.services
 			
 			
 			operation = new mx.rpc.http.Operation(null, "addEvent");
+			operation.headers = null;
 			operation.contentType = "application/json";
 			operation.method = "POST";
 			operation.serializationFilter = serializer;
@@ -103,6 +124,7 @@ package com.code11.google.calendar.services
 			
 			
 			operation = new mx.rpc.http.Operation(null, "updateEvent");
+			operation.headers = null;
 			operation.contentType = "application/json";
 			operation.method = "PUT";
 			operation.serializationFilter = serializer;
@@ -111,6 +133,7 @@ package com.code11.google.calendar.services
 			
 			
 			operation = new mx.rpc.http.Operation(null, "deleteEvent");
+			operation.headers = null;
 			operation.contentType = "application/json";
 			operation.method = "DELETE";
 			operations.push(operation);
@@ -160,6 +183,7 @@ package com.code11.google.calendar.services
 		public function deleteCalendar(calendar:CalendarVO):AsyncToken {
 			var op:Operation = getOperation("deleteCalendar") as Operation;
 			op.url = calendar.selfLink;
+			op.request = null;
 			var token:AsyncToken = op.send();
 			return token;
 		}
@@ -215,7 +239,9 @@ package com.code11.google.calendar.services
 		public function deleteEvent(event:EventVO):AsyncToken {
 			var op:Operation = getOperation("deleteEvent") as Operation;
 			op.url = event.selfLink;
-			op.headers = {"If-Match":"*"};
+			op.request = null;
+			op.headers = ObjectUtil.clone(headers);
+			op.headers["If-Match"]  = "*";
 			var token:AsyncToken = op.send();
 			return token;
 		}

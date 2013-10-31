@@ -2,8 +2,7 @@
 <s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
 					   xmlns:s="library://ns.adobe.com/flex/spark" 
 					   xmlns:mx="library://ns.adobe.com/flex/mx"
-					   creationComplete="application1_creationCompleteHandler(event)"
-					   enabled="true">
+					   creationComplete="application1_creationCompleteHandler(event)">
 	<fx:Script>
 		<![CDATA[
 			import com.code11.google.calendar.services.GoogleCalendarService;
@@ -12,7 +11,8 @@
 			import com.code11.google.calendar.valueObjects.EventListResponse;
 			import com.code11.google.calendar.valueObjects.EventVO;
 			import com.code11.google.login.AuthenticatedUser;
-			import com.code11.google.login.ClientLoginService;
+			import com.code11.google.login.ClientLogin;
+			import com.code11.google.login.events.LoginEvent;
 			
 			import mx.events.FlexEvent;
 			import mx.rpc.AsyncToken;
@@ -20,158 +20,135 @@
 			import mx.rpc.events.FaultEvent;
 			import mx.rpc.events.ResultEvent;
 			
-			private var _calendarService:GoogleCalendarService;
+			private var service:GoogleCalendarService;
 			
 			protected function application1_creationCompleteHandler(event:FlexEvent):void
 			{
 				
-				_calendarService = new GoogleCalendarService(); 
-				//autheticate();
+				service = new GoogleCalendarService(); 
+				status = "Please Login";
 			}
-			
-			private var calendarAuthenticator:ClientLoginService;
-			private function autheticate():void {
-				calendarAuthenticator = new ClientLoginService();
-				var token:AsyncToken = calendarAuthenticator.authenticateUser("rocodesign","l3SxML3cBewS","cl");
-				token.addResponder(new mx.rpc.Responder(handleAuthenticationResult, handleAuthenticationFault));
-				
-			}
-			
-			
-			private var _applicationId:String;
-			private var _userName:String;
-			private var _userPassword:String;
-			private var _authenticationToken:String = null;
-			private function handleAuthenticationResult(event:ResultEvent):void
-			{
-				
-				if(event.result != null && event.result is String) {
-					_authenticationToken = event.result.split("Auth=")[1];
-				} else {
-					return;
-				}
-				
-				userObj = new AuthenticatedUser();
-				userObj.email = _userName;
-				userObj.password = _userPassword;
-				userObj.token = _authenticationToken;
-				userObj.loggedInTime = new Date();
-				
-				//authentication successful
-				trace("AUTHENTICATED");
-				userObj.authenticated = _authenticationToken != null
-				_calendarService.channelSet.setCredentials(userObj.token,null);
-				enabled = true;
-			} 
-			
-			private function handleAuthenticationFault(event:FaultEvent):void
-			{
-				trace("Login Failed");
-				
-				userObj = null;
-				
-			}
-			
 			
 			public var userObj:AuthenticatedUser;
-			
-			
-			public function result(event:ResultEvent):void {
-				trace("RESULT");
+			private var calendarAuthenticator:ClientLogin;
+			private function autheticate():void {
+				calendarAuthenticator = new ClientLogin();
+				calendarAuthenticator.addEventListener(LoginEvent.SUCCESS,onLogin);
+				calendarAuthenticator.addEventListener(LoginEvent.FAILED,onLoginFault);
+				calendarAuthenticator.authenticateUser(uti.text,pti.text,"cl");
+				
+				status = "Loging in...";
 			}
+			
+			protected function onLogin(event:LoginEvent):void
+			{
+				userObj = event.user;
+				buttonSet1.enabled = true;
+				service.headers["Authorization"] = "GoogleLogin auth="+userObj.token;
+				service.headers["GData-Version"] = 2;
+				//_calendarService.channelSet.setCredentials(userObj.token,null);
+				status = "Login Success";
+			}
+			
+			protected function onLoginFault(event:LoginEvent):void
+			{
+				trace("LOGIN FAILED");
+				status = "Login Failed";
+			}
+			
+			
+			
+			
 			
 			public function fault(event:FaultEvent):void {
 				trace("FAULT");
+				status = "Call Failed";
 			}
 			
-			/*private function addCalendar():void {
-				if(cal != null) {
-					//_calendarService.addCalendar(cal,authenticatedUser); 
-				}
-			}*/
-			
-			protected function handleAddCalendar(event:Event):void
-			{
-				// TODO Auto-generated method stub
-				
-			}
-			
-			
-			protected function handleCalendars(event:Event):void
-			{
-				// TODO Auto-generated method stub
-				trace("CALENDARS LOADED");
-			}
 			
 			protected function button1_clickHandler(event:MouseEvent):void {
-				var token:AsyncToken = _calendarService.getAllCalendars();
+				var token:AsyncToken = service.getAllCalendars();
 				token.addResponder(new mx.rpc.Responder(gotCalendars,fault));
-				
+				status = "Retrieving calendars...";
 			}
 			
 			protected function button2_clickHandler(event:MouseEvent):void {
-				var token:AsyncToken = _calendarService.getOwnedCalendars();
+				var token:AsyncToken = service.getOwnedCalendars();
 				token.addResponder(new mx.rpc.Responder(gotCalendars,fault));
+				status = "Retrieving calendars...";
 			}
 			
 			protected function button3_clickHandler(event:MouseEvent):void {
-				var token:AsyncToken = _calendarService.createCalendar("ANEWCAL","TEST","Europe/Bucharest");
+				var token:AsyncToken = service.createCalendar("ANEWCAL","TEST","Europe/Bucharest");
 				token.addResponder(new mx.rpc.Responder(addedCalendar,fault));
+				status = "Creating calendar...";
 			}
 			
 			private function gotCalendars(event:ResultEvent):void
 			{
 				calList.dataProvider = (event.result as AllCalendarResponse).data.items;
+				status = calList.dataProvider.length + " Calendars Retrieved";
 			}
 			
 			private function addedCalendar(event:ResultEvent):void {
 				button2_clickHandler(null);
+				status = "Calendar Action Success";
 			}
 			
 			protected function deleteHandler(event:MouseEvent):void
 			{
-				var token:AsyncToken = _calendarService.deleteCalendar(calList.selectedItem);
+				var token:AsyncToken = service.deleteCalendar(calList.selectedItem);
 				token.addResponder(new mx.rpc.Responder(addedCalendar,fault));
+				status = "Deleting calendar...";
 			}
 			
 			protected function updateHandler(event:MouseEvent):void
 			{
 				calList.selectedItem.title = "UPDATED CALENDAR";
-				var token:AsyncToken = _calendarService.updateCalendar(calList.selectedItem);
+				var token:AsyncToken = service.updateCalendar(calList.selectedItem);
 				token.addResponder(new mx.rpc.Responder(addedCalendar,fault));
+				status = "Updating calendar...";
 			}
 			
 			protected function eventsHandler(event:MouseEvent):void
 			{
-				var token:AsyncToken = _calendarService.getEventsBetween(calList.selectedItem,new Date(2000,01,01),new Date(2012,01,01));
+				var token:AsyncToken = service.getEventsBetween(calList.selectedItem,new Date(2000,01,01),new Date(2012,01,01));
 				token.addResponder(new mx.rpc.Responder(gotEvents,fault));
+				status = "Retrieving events...";
 			}
 			
 			protected function addEventHandler(event:MouseEvent):void {
-				var token:AsyncToken = _calendarService.addEvent(calList.selectedItem,new Date(),new Date(),"Recurring event",
+				var token:AsyncToken = service.addEvent(calList.selectedItem,new Date(),new Date(),"Recurring event",
 												"repeat every month","opaque","confirmed","Everywhere",Recurrence.DEFAULT_MONTHLY);
 				token.addResponder(new mx.rpc.Responder(gotEvent,fault));
+				status = "Adding event...";
 			}
 			
 			protected function updateEventHandler(event:MouseEvent):void {
 				(eventList.selectedItem as EventVO).title = "Updated Event " + new Date().getTime();
-				var token:AsyncToken = _calendarService.updateEvent(eventList.selectedItem);
+				var token:AsyncToken = service.updateEvent(eventList.selectedItem);
 				token.addResponder(new mx.rpc.Responder(gotEvent,fault));
+				status = "Updating event...";
 			}
 			
 			protected function deleteEventHandler(event:MouseEvent):void {
-				var token:AsyncToken = _calendarService.deleteEvent(eventList.selectedItem);
+				var token:AsyncToken = service.deleteEvent(eventList.selectedItem);
 				token.addResponder(new mx.rpc.Responder(gotEvent,fault));
+				status = "Deleting event...";
 			}
 			
 			private function gotEvents(event:ResultEvent):void {
 				eventList.dataProvider = (event.result as EventListResponse).data.items;
+				status = eventList.dataProvider.length + " Events Retrieved";
 			}
 			
 			private function gotEvent(event:ResultEvent):void {
 				//eventList.dataProvider = (event.result as EventListResponse).data.items;
 				eventsHandler(null);
+				status = "Event Action Success";
 			}
+			
+			
 			
 		]]>
 	</fx:Script>
@@ -179,11 +156,16 @@
 		<!-- Place non-visual elements (e.g., services, value objects) here -->
 	</fx:Declarations>
 	<s:layout>
-		<s:VerticalLayout />
+		<s:VerticalLayout paddingLeft="10" paddingTop="10" paddingRight="10" paddingBottom="15"/>
 	</s:layout>
-	<s:Group width="100%">
+	<s:HGroup width="100%">
+		<s:TextInput prompt="Username" width="100%" id="uti"/>
+		<s:TextInput prompt="Password" displayAsPassword="true" width="100%" id="pti"/>
+		<s:Button label="LOGIN" click="autheticate()"/>
+	</s:HGroup>
+	<s:Group width="100%" id="buttonSet1" enabled="false">
 		<s:layout>
-			<s:TileLayout requestedRowCount="-1" requestedColumnCount="-1"/>
+			<s:TileLayout requestedColumnCount="3" requestedRowCount="2"/>
 		</s:layout>
 		<s:Button label="GETALLCALENDARS" click="button1_clickHandler(event)"/>
 		<s:Button label="GETOWNCALENDARS" click="button2_clickHandler(event)"/>
@@ -191,13 +173,12 @@
 		<s:Button label="UPDATE CALENDAR" click="updateHandler(event)"/>
 		<s:Button label="DELETE CALENDAR" click="deleteHandler(event)" enabled="{calList.selectedIndex > 0}"/>
 	</s:Group>
-	<s:List labelField="title" top="30" id="calList"/>
+	<s:List labelField="title" top="30" id="calList" width="100%"/>
 	<s:HGroup enabled="{calList.selectedIndex >= 0}">
 		<s:Button label="ADDEVENT" click="addEventHandler(event)"/>
 		<s:Button label="GETEVENTS" click="eventsHandler(event)"/>
 		<s:Button label="UPDATEEVENT" click="updateEventHandler(event)"/>
 		<s:Button label="DELETEEVENT" click="deleteEventHandler(event)"/>
-		<!--<s:Button label="GETOWNCALENDARS" click="button2_clickHandler(event)"/>-->
 	</s:HGroup>
-	<s:List labelField="title" top="30" id="eventList"/>
+	<s:List labelField="title" top="30" id="eventList" width="100%"/>
 </s:WindowedApplication>

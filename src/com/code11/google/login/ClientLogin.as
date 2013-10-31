@@ -1,9 +1,22 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+//  CODE11.COM
+//  Copyright 2011
+//  licenced under GPU
+//
+//  @author		Romeo Copaciu romeo.copaciu@code11.com
+//  @date		24 May 2011
+//  @version	1.0
+//  @site		code11.com
+//
+////////////////////////////////////////////////////////////////////////////////
+
 package com.code11.google.login
 {
-	import com.adobe.googlecalendar.events.GoogleCalendarAuthenticatorEvent;
-	import com.adobe.googlecalendar.model.GoogleCalendarModelLocator;
+	import com.code11.google.login.events.LoginEvent;
 	import com.code11.util.LogUtil;
 	
+	import flash.events.Event;
 	import flash.events.EventDispatcher;
 	
 	import mx.logging.ILogger;
@@ -13,7 +26,8 @@ package com.code11.google.login
 	import mx.rpc.events.ResultEvent;
 	import mx.rpc.http.HTTPService;
 	
-	
+	[Event(name="success", type="com.code11.google.login.events.LoginEvent")]
+	[Event(name="failed", type="com.code11.google.login.events.LoginEvent")]
 	public class ClientLogin  extends EventDispatcher {
 		
 		private var _applicationId:String;
@@ -51,7 +65,7 @@ package com.code11.google.login
 			log.debug("Authenticated " + _userName);
 			
 			if(event.result != null && event.result is String) {
-				_authenticationToken = event.result.split("Auth=")[1];
+				_authenticationToken = String(event.result).match(/Auth=([A-z0-9\-_]+)/)[1];
 			} else {
 				return;
 			}
@@ -62,30 +76,8 @@ package com.code11.google.login
 			authenticatedUser.token = _authenticationToken;
 			authenticatedUser.loggedInTime = new Date();
 			
-			var authEvent:GoogleCalendarAuthenticatorEvent;
-			
-			//authentication successful
-			if(_authenticationToken != null)
-			{
-				log.debug("Authentication successful");
-				authEvent = new GoogleCalendarAuthenticatorEvent(
-					GoogleCalendarAuthenticatorEvent.AUTHENTICATION_RESPONSE);
-				
-				authenticatedUser.authenticated = true;
-			}
-			else
-			{
-				log.debug("Authentication token missing");
-				authEvent = new GoogleCalendarAuthenticatorEvent(
-					GoogleCalendarAuthenticatorEvent.AUTHENTICATION_FAULT);
-				authEvent.errorMessage = "Authentication token missing";
-				
-				authenticatedUser.authenticated = false;
-			}	
-			
-			authEvent.authenticatedUser = authenticatedUser;
-			dispatchEvent(authEvent);
-				
+			var loginEvent:LoginEvent = new LoginEvent(LoginEvent.SUCCESS,authenticatedUser);
+			dispatchEvent(loginEvent);
 		} 
 		
 		private function handleAuthenticationFault(event:FaultEvent):void
@@ -98,6 +90,9 @@ package com.code11.google.login
 			authenticatedUser.token = _authenticationToken;
 			authenticatedUser.loggedInTime = new Date();			
 			authenticatedUser.authenticated = false;
+			
+			var loginEvent:LoginEvent = new LoginEvent(LoginEvent.FAILED,authenticatedUser);
+			dispatchEvent(loginEvent);
 			
 		}
 		
